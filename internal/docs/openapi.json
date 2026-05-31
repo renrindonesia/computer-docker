@@ -248,9 +248,19 @@
     },
     "/api/v1/procs/{id}/logs": {
       "get": {
-        "summary": "Get buffered logs (last 1000 lines, stdout+stderr)",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Logs" }, "404": { "description": "Not found" } }
+        "summary": "Get buffered logs, or stream live with ?follow=1 (SSE)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "follow", "in": "query", "schema": { "type": "string" }, "description": "Set to stream new lines as Server-Sent Events until the process exits" }
+        ],
+        "responses": { "200": { "description": "Logs (JSON) or text/event-stream when following" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "summary": "Recent audited actions (exec, proc_start, fs writes, installs)",
+        "parameters": [{ "name": "limit", "in": "query", "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Audit entries" } }
       }
     },
     "/api/v1/procs/{id}/stop": {

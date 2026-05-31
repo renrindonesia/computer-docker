@@ -16,6 +16,7 @@ type Config struct {
 	FSRoot         string
 	ExecTimeout    time.Duration
 	ExecMaxTimeout time.Duration
+	AuditLog       string
 }
 
 // Load reads .env (if present) then env vars, with sensible defaults.
@@ -27,6 +28,7 @@ func Load(envPath string) Config {
 		FSRoot:         envOr("FS_ROOT", "/opt/data"),
 		ExecTimeout:    secs("EXEC_TIMEOUT_SEC", 30),
 		ExecMaxTimeout: secs("EXEC_MAX_TIMEOUT_SEC", 300),
+		AuditLog:       os.Getenv("AUDIT_LOG"),
 	}
 }
 

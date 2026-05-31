@@ -8,6 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"computer-use/internal/audit"
 	"computer-use/internal/execapi"
 	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
@@ -18,15 +19,16 @@ var errUnknownExt = errors.New("unknown extension")
 
 // Server bundles the sandbox services exposed as MCP tools.
 type Server struct {
-	fs   *fsapi.Service
-	exec *execapi.Service
-	proc *procapi.Manager
-	ext  *extapi.Manager
+	fs    *fsapi.Service
+	exec  *execapi.Service
+	proc  *procapi.Manager
+	ext   *extapi.Manager
+	audit *audit.Recorder
 }
 
 // New creates an MCP Server over the given services.
-func New(fs *fsapi.Service, exec *execapi.Service, proc *procapi.Manager, ext *extapi.Manager) *Server {
-	return &Server{fs: fs, exec: exec, proc: proc, ext: ext}
+func New(fs *fsapi.Service, exec *execapi.Service, proc *procapi.Manager, ext *extapi.Manager, aud *audit.Recorder) *Server {
+	return &Server{fs: fs, exec: exec, proc: proc, ext: ext, audit: aud}
 }
 
 // mcpServer builds the underlying *mcp.Server with all tools registered.

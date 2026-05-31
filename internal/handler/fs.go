@@ -71,6 +71,7 @@ func (h *Handler) fsWrite(w http.ResponseWriter, r *http.Request) {
 		h.fsErr(w, err)
 		return
 	}
+	h.audit.Record("fs_write", req.Path, r.RemoteAddr, map[string]any{"bytes": len(req.Content)})
 	writeJSON(w, http.StatusOK, map[string]any{"path": req.Path, "bytes": len(req.Content)})
 }
 
@@ -105,5 +106,6 @@ func (h *Handler) fsDelete(w http.ResponseWriter, r *http.Request) {
 		h.fsErr(w, err)
 		return
 	}
+	h.audit.Record("fs_delete", path, r.RemoteAddr, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"path": path, "deleted": true})
 }

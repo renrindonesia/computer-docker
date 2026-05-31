@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"computer-use/internal/audit"
 	"computer-use/internal/execapi"
 	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
@@ -19,11 +20,13 @@ func newTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("fsapi.New: %v", err)
 	}
+	aud, _ := audit.New(100, "")
 	return New(
 		fs,
 		execapi.New(fs.Root, 5*time.Second, 10*time.Second),
 		procapi.NewManager(fs.Root),
 		extapi.NewManager(),
+		aud,
 	)
 }
 

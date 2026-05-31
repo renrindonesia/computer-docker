@@ -33,6 +33,7 @@ func (h *Handler) extInstall(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	h.audit.Record("ext_install", name, r.RemoteAddr, map[string]any{"id": p.ID})
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"extension":  name,
 		"installing": true,

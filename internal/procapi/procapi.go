@@ -22,11 +22,14 @@ const (
 	StateExited  State = "exited"
 )
 
-// ringBuffer keeps the last N log lines (combined stdout+stderr).
+// ringBuffer keeps the last N log lines (combined stdout+stderr) and fans new
+// lines out to live subscribers.
 type ringBuffer struct {
-	mu    sync.Mutex
-	lines []LogLine
-	max   int
+	mu     sync.Mutex
+	lines  []LogLine
+	max    int
+	subs   map[chan LogLine]struct{}
+	closed bool
 }
 
 // LogLine is one captured output line from a process.
@@ -39,9 +42,16 @@ type LogLine struct {
 func (r *ringBuffer) add(stream, text string, at time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.lines = append(r.lines, LogLine{stream, text, at})
+	ln := LogLine{stream, text, at}
+	r.lines = append(r.lines, ln)
 	if len(r.lines) > r.max {
 		r.lines = r.lines[len(r.lines)-r.max:]
+	}
+	for ch := range r.subs {
+		select {
+		case ch <- ln:
+		default: // slow subscriber: drop rather than block the pump
+		}
 	}
 }
 
@@ -51,6 +61,48 @@ func (r *ringBuffer) snapshot() []LogLine {
 	out := make([]LogLine, len(r.lines))
 	copy(out, r.lines)
 	return out
+}
+
+// subscribe returns the current buffer plus a channel of future lines. The
+// channel is closed when the process ends (or on unsubscribe).
+func (r *ringBuffer) subscribe() ([]LogLine, chan LogLine) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	snap := make([]LogLine, len(r.lines))
+	copy(snap, r.lines)
+	ch := make(chan LogLine, 256)
+	if r.closed {
+		close(ch)
+		return snap, ch
+	}
+	if r.subs == nil {
+		r.subs = map[chan LogLine]struct{}{}
+	}
+	r.subs[ch] = struct{}{}
+	return snap, ch
+}
+
+func (r *ringBuffer) unsubscribe(ch chan LogLine) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.subs[ch]; ok {
+		delete(r.subs, ch)
+		close(ch)
+	}
+}
+
+// closeSubs ends all live streams; called once when the process exits.
+func (r *ringBuffer) closeSubs() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return
+	}
+	r.closed = true
+	for ch := range r.subs {
+		delete(r.subs, ch)
+		close(ch)
+	}
 }
 
 // Process is a managed background command. Mutable fields (state, exitCode,
@@ -204,6 +256,7 @@ func (m *Manager) Start(req StartRequest) (ProcView, error) {
 			}
 		}
 		p.setState(StateExited, code, m.nowFn())
+		p.logs.closeSubs()
 	}()
 
 	return p.view(), nil
@@ -255,6 +308,17 @@ func (m *Manager) Logs(id string) ([]LogLine, error) {
 		return nil, err
 	}
 	return p.logs.snapshot(), nil
+}
+
+// Subscribe returns the buffered lines plus a channel of future lines and an
+// unsubscribe func. The channel closes when the process exits.
+func (m *Manager) Subscribe(id string) (snapshot []LogLine, ch chan LogLine, cancel func(), err error) {
+	p, err := m.find(id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	snap, c := p.logs.subscribe()
+	return snap, c, func() { p.logs.unsubscribe(c) }, nil
 }
 
 // Stop sends SIGTERM to the process group of id.

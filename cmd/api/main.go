@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"computer-use/internal/audit"
 	"computer-use/internal/config"
 	"computer-use/internal/docs"
 	"computer-use/internal/execapi"
@@ -35,14 +36,21 @@ func main() {
 	procMgr := procapi.NewManager(fsSvc.Root)
 	extMgr := extapi.NewManager()
 
-	h := handler.New(fsSvc, execSvc, procMgr, extMgr, logger)
+	auditRec, err := audit.New(1000, cfg.AuditLog)
+	if err != nil {
+		logger.Error("audit init failed", "err", err)
+		os.Exit(1)
+	}
+	defer auditRec.Close()
+
+	h := handler.New(fsSvc, execSvc, procMgr, extMgr, auditRec, logger)
 
 	mux := http.NewServeMux()
 	h.Routes(mux)
 	docs.Register(mux)
 
 	// MCP over Streamable HTTP — same services, same auth, mounted at /mcp.
-	mcpSrv := mcpserver.New(fsSvc, execSvc, procMgr, extMgr)
+	mcpSrv := mcpserver.New(fsSvc, execSvc, procMgr, extMgr, auditRec)
 	mux.Handle("/mcp", mcpSrv.Handler())
 	mux.Handle("/mcp/", mcpSrv.Handler())
 

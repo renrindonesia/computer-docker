@@ -58,6 +58,7 @@ func (s *Server) fsWrite(_ context.Context, _ *mcp.CallToolRequest, in fsWriteIn
 	if err := s.fs.Write(in.Path, []byte(in.Content)); err != nil {
 		return nil, okPathOut{}, err
 	}
+	s.audit.Record("fs_write", in.Path, "mcp", map[string]any{"bytes": len(in.Content)})
 	return nil, okPathOut{Path: in.Path, OK: true}, nil
 }
 
@@ -71,6 +72,7 @@ func (s *Server) fsEdit(_ context.Context, _ *mcp.CallToolRequest, in fsEditIn) 
 	if err := s.fs.Patch(in.Path, in.Old, in.New); err != nil {
 		return nil, okPathOut{}, err
 	}
+	s.audit.Record("fs_edit", in.Path, "mcp", nil)
 	return nil, okPathOut{Path: in.Path, OK: true}, nil
 }
 
@@ -103,6 +105,7 @@ func (s *Server) fsMove(_ context.Context, _ *mcp.CallToolRequest, in fromToIn) 
 	if err := s.fs.Move(in.From, in.To); err != nil {
 		return nil, okPathOut{}, err
 	}
+	s.audit.Record("fs_move", in.To, "mcp", map[string]any{"from": in.From})
 	return nil, okPathOut{Path: in.To, OK: true}, nil
 }
 
@@ -110,6 +113,7 @@ func (s *Server) fsRemove(_ context.Context, _ *mcp.CallToolRequest, in pathIn) 
 	if err := s.fs.Delete(in.Path); err != nil {
 		return nil, okPathOut{}, err
 	}
+	s.audit.Record("fs_delete", in.Path, "mcp", nil)
 	return nil, okPathOut{Path: in.Path, OK: true}, nil
 }
 
@@ -134,6 +138,7 @@ func (s *Server) execRun(ctx context.Context, _ *mcp.CallToolRequest, in execIn)
 	if err != nil {
 		return nil, execapi.Result{}, err
 	}
+	s.audit.Record("exec", in.Command, "mcp", map[string]any{"args": in.Args})
 	return nil, res, nil
 }
 
@@ -156,6 +161,7 @@ func (s *Server) procStart(_ context.Context, _ *mcp.CallToolRequest, in procSta
 	if err != nil {
 		return nil, procapi.ProcView{}, err
 	}
+	s.audit.Record("proc_start", in.Command, "mcp", map[string]any{"id": p.ID, "args": in.Args})
 	return nil, p, nil
 }
 
@@ -226,6 +232,7 @@ func (s *Server) extInstall(_ context.Context, _ *mcp.CallToolRequest, in extIns
 	if err != nil {
 		return nil, extInstallOut{}, err
 	}
+	s.audit.Record("ext_install", in.Name, "mcp", map[string]any{"id": p.ID})
 	return nil, extInstallOut{
 		Extension: in.Name,
 		Process:   p,

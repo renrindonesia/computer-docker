@@ -28,6 +28,14 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+// Flush delegates to the underlying ResponseWriter so SSE/streaming works
+// through the logging wrapper.
+func (r *statusRecorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // Logging logs each request with method, path, status, duration.
 func Logging(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {

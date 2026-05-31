@@ -14,6 +14,7 @@ func (h *Handler) execRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+	h.audit.Record("exec", req.Command, r.RemoteAddr, map[string]any{"args": req.Args})
 	res, err := h.exec.Run(r.Context(), req)
 	if err != nil {
 		if errors.Is(err, execapi.ErrNoCommand) {

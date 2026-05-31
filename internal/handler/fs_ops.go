@@ -27,6 +27,7 @@ func (h *Handler) fsMove(w http.ResponseWriter, r *http.Request) {
 		h.fsErr(w, err)
 		return
 	}
+	h.audit.Record("fs_move", req.To, r.RemoteAddr, map[string]any{"from": req.From})
 	writeJSON(w, http.StatusOK, map[string]any{"from": req.From, "to": req.To, "moved": true})
 }
 
@@ -83,6 +84,7 @@ func (h *Handler) fsPatch(w http.ResponseWriter, r *http.Request) {
 	err := h.fs.Patch(req.Path, req.Old, req.New)
 	switch {
 	case err == nil:
+		h.audit.Record("fs_edit", req.Path, r.RemoteAddr, nil)
 		writeJSON(w, http.StatusOK, map[string]any{"path": req.Path, "patched": true})
 	case errors.Is(err, fsapi.ErrPatchNoMatch):
 		writeErr(w, http.StatusConflict, "old block not found")
