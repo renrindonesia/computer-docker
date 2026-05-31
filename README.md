@@ -55,6 +55,30 @@ Your agent is brilliant but **homeless** — no disk to keep, no shell to run, n
 
 ---
 
+## 🆚 Why not just SSH?
+
+Honest answer: this is **not** an SSH replacement for humans. It's a different shape, built for **agents**. SSH still wins for interactive human/ops work — pick the right tool.
+
+| | 🖥️ computer-docker | 🔑 SSH |
+|---|---|---|
+| **Output** | structured JSON — `{stdout, stderr, exit_code, duration_ms}` | raw text blob, parse + guess |
+| **Agent interface** | MCP — typed tools with schemas, model calls natively | agent must know shell, quoting, escaping |
+| **Transport** | HTTP — through firewalls, proxies, serverless, browsers | persistent TCP :22, key + pty dance |
+| **Scope** | fs jailed to `/opt/data`; only the tools you expose | whole box, full shell, always |
+| **Audit** | built-in append-only trail of every action | needs auditd / extra setup |
+| **Background jobs** | process manager + log ring + **live SSE stream** | tmux/nohup juggling, parse output |
+| **Auth** | one scoped API key | user/key mgmt, sudo, PAM |
+| **Introspection** | `/info` — one call: system + procs + ext + files | run N commands, parse each |
+| **Disposable** | container — nuke + respawn in seconds | provision, harden, persist |
+
+**Where SSH wins:** interactive PTY (`vim`, REPLs), decades of hardening, `scp`/`rsync`/port-forward/X11, nothing to maintain, unrestricted access.
+
+**Pick this when** your client is an **LLM** that should run code in a disposable, guardrailed box — and you want every action to be **structured data** you can read and audit, reachable over plain **HTTP/MCP**. Pick **SSH** when a human needs a full remote shell.
+
+> SSH = full remote shell for **humans/ops**. · computer-docker = scoped, structured, auditable computer API for **agents**.
+
+---
+
 ## ⚡ 60-second start
 
 ```bash
