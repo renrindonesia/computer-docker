@@ -14,7 +14,6 @@ import (
 	"computer-use/internal/config"
 	"computer-use/internal/docs"
 	"computer-use/internal/execapi"
-	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/handler"
 	"computer-use/internal/mcpserver"
@@ -34,7 +33,6 @@ func main() {
 	}
 	execSvc := execapi.New(fsSvc.Root, cfg.ExecTimeout, cfg.ExecMaxTimeout)
 	procMgr := procapi.NewManager(fsSvc.Root)
-	extMgr := extapi.NewManager()
 
 	auditRec, err := audit.New(1000, cfg.AuditLog)
 	if err != nil {
@@ -43,14 +41,14 @@ func main() {
 	}
 	defer auditRec.Close()
 
-	h := handler.New(fsSvc, execSvc, procMgr, extMgr, auditRec, logger)
+	h := handler.New(fsSvc, execSvc, procMgr, auditRec, logger)
 
 	mux := http.NewServeMux()
 	h.Routes(mux)
 	docs.Register(mux)
 
 	// MCP over Streamable HTTP — same services, same auth, mounted at /mcp.
-	mcpSrv := mcpserver.New(fsSvc, execSvc, procMgr, extMgr, auditRec)
+	mcpSrv := mcpserver.New(fsSvc, execSvc, procMgr, auditRec)
 	mux.Handle("/mcp", mcpSrv.Handler())
 	mux.Handle("/mcp/", mcpSrv.Handler())
 

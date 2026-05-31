@@ -7,8 +7,8 @@ import (
 )
 
 // info aggregates a one-shot view of the sandbox: system facts, running
-// processes, extension status, and the root-level file listing.
-func (h *Handler) info(w http.ResponseWriter, r *http.Request) {
+// processes, and the root-level file listing.
+func (h *Handler) info(w http.ResponseWriter, _ *http.Request) {
 	hostname, _ := os.Hostname()
 
 	rootFiles, err := h.fs.List("/")
@@ -26,7 +26,6 @@ func (h *Handler) info(w http.ResponseWriter, r *http.Request) {
 		},
 		"fs_root":    h.fs.Root,
 		"processes":  h.procs.List(),
-		"extensions": h.ext.Statuses(r.Context()),
 		"root_files": rootFiles,
 	})
 }

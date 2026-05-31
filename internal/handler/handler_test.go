@@ -12,7 +12,6 @@ import (
 
 	"computer-use/internal/audit"
 	"computer-use/internal/execapi"
-	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/handler"
 	"computer-use/internal/middleware"
@@ -27,9 +26,8 @@ func newServer(t *testing.T, apiKey string) *httptest.Server {
 	}
 	ex := execapi.New(fs.Root, 5*time.Second, 10*time.Second)
 	pm := procapi.NewManager(fs.Root)
-	em := extapi.NewManager()
 	aud, _ := audit.New(100, "")
-	h := handler.New(fs, ex, pm, em, aud, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := handler.New(fs, ex, pm, aud, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	mux := http.NewServeMux()
 	h.Routes(mux)

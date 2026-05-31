@@ -46,7 +46,7 @@
 Your agent is brilliant but **homeless** — no disk to keep, no shell to run, no process to babysit, no browser to drive. `computer-docker` hands it a **whole computer** through plain HTTP:
 
 - 🧠 **Stateful** — a real filesystem under `/opt/data`, survives across calls
-- 🔌 **One API** — files, shell, long-running processes, installable extensions
+- 🔌 **One API** — files, shell, long-running processes, browser automation baked in
 - 📦 **Disposable** — it's a container; nuke and respawn in seconds
 - 🌍 **Remote-first** — runs on your laptop, a VM, or a cloud box; reach it from anywhere
 - 🪶 **Featherweight** — single static Go binary, **zero** third-party Go deps
@@ -112,7 +112,6 @@ curl "localhost:8080/api/v1/info?key=changeme"
   "system":     { "hostname": "…", "os": "linux", "arch": "amd64", "num_cpu": 8 },
   "fs_root":    "/opt/data",
   "processes":  [ /* every background proc + state */ ],
-  "extensions": [ { "name": "browser-use", "installed": false, … } ],
   "root_files": [ /* top-level listing of /opt/data */ ]
 }
 ```
@@ -178,23 +177,6 @@ curl -X POST ".../procs/$ID/stop?key=$K"
 ```
 </details>
 
-<details>
-<summary><b>🧩 Extensions — installable superpowers</b></summary>
-
-Drop-in capabilities, installed at runtime into the container. First-class entry: **[browser-use](https://github.com/browser-use/browser-use)** 🌐 — browser automation for agents.
-
-| Method | Path | What |
-|---|---|---|
-| `GET` | `/extensions` | catalog + installed status |
-| `POST` | `/extensions/{name}/install` | install **in the background** → returns a proc id |
-
-```bash
-# kick off install, then tail the pip logs live
-P=$(curl -s -X POST ".../extensions/browser-use/install?key=$K" | jq -r .process.id)
-curl ".../procs/$P/logs?key=$K"
-```
-</details>
-
 ---
 
 ## 🤖 Connect your agent (MCP)
@@ -215,14 +197,14 @@ The sandbox speaks **Model Context Protocol** over Streamable HTTP at **`/mcp`**
 }
 ```
 
-**15 tools** exposed:
+**13 tools** exposed:
 
 | Group | Tools |
 |---|---|
 | 📁 files | `fs_list` · `fs_read` · `fs_write` · `fs_edit` · `fs_search` · `fs_move` · `fs_remove` |
 | 📜 shell | `exec` |
 | ⚙️ procs | `proc_start` · `proc_list` · `proc_logs` · `proc_stop` |
-| 🧩 system | `ext_list` · `ext_install` · `info` |
+| 🧩 system | `info` |
 
 > Same services, same API key as the REST API — REST stays available for non-MCP clients.
 
@@ -264,7 +246,6 @@ internal/config      .env + env loader
 internal/fsapi       path-jailed filesystem (+ ops, patch, search)
 internal/execapi     synchronous command runner
 internal/procapi     background process manager + log ring buffer
-internal/extapi      installable extension catalog (browser-use)
 internal/handler     HTTP handlers + route table + /info
 internal/middleware  logging · panic recovery · API-key auth
 internal/docs        embedded OpenAPI + Swagger UI

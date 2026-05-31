@@ -9,7 +9,6 @@ import (
 
 	"computer-use/internal/audit"
 	"computer-use/internal/execapi"
-	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/procapi"
 )
@@ -25,7 +24,6 @@ func newTestServer(t *testing.T) *Server {
 		fs,
 		execapi.New(fs.Root, 5*time.Second, 10*time.Second),
 		procapi.NewManager(fs.Root),
-		extapi.NewManager(),
 		aud,
 	)
 }
@@ -52,12 +50,12 @@ func TestListToolsCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(res.Tools) != 15 {
+	if len(res.Tools) != 13 {
 		names := make([]string, 0, len(res.Tools))
 		for _, tl := range res.Tools {
 			names = append(names, tl.Name)
 		}
-		t.Fatalf("want 15 tools, got %d: %v", len(res.Tools), names)
+		t.Fatalf("want 13 tools, got %d: %v", len(res.Tools), names)
 	}
 }
 

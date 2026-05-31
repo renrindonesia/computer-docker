@@ -9,7 +9,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"computer-use/internal/execapi"
-	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/procapi"
 )
@@ -203,52 +202,16 @@ func (s *Server) procStop(_ context.Context, _ *mcp.CallToolRequest, in idIn) (*
 	return nil, okIDOut{ID: in.ID, OK: true}, nil
 }
 
-// ---- Extensions + info ----
-
-type extListOut struct {
-	Extensions []extapi.Status `json:"extensions"`
-}
-
-func (s *Server) extList(ctx context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.CallToolResult, extListOut, error) {
-	return nil, extListOut{Extensions: s.ext.Statuses(ctx)}, nil
-}
-
-type extInstallIn struct {
-	Name string `json:"name"`
-}
-
-type extInstallOut struct {
-	Extension string           `json:"extension"`
-	Process   procapi.ProcView `json:"process"`
-	Hint      string           `json:"hint"`
-}
-
-func (s *Server) extInstall(_ context.Context, _ *mcp.CallToolRequest, in extInstallIn) (*mcp.CallToolResult, extInstallOut, error) {
-	e, ok := s.ext.Get(in.Name)
-	if err := mustExt(ok); err != nil {
-		return nil, extInstallOut{}, err
-	}
-	p, err := s.proc.Start(procapi.StartRequest{Command: e.Install[0], Args: e.Install[1:]})
-	if err != nil {
-		return nil, extInstallOut{}, err
-	}
-	s.audit.Record("ext_install", in.Name, "mcp", map[string]any{"id": p.ID})
-	return nil, extInstallOut{
-		Extension: in.Name,
-		Process:   p,
-		Hint:      "poll proc_logs with id " + p.ID,
-	}, nil
-}
+// ---- Info ----
 
 type infoOut struct {
-	System     map[string]any     `json:"system"`
-	FSRoot     string             `json:"fs_root"`
-	Processes  []procapi.ProcView `json:"processes"`
-	Extensions []extapi.Status    `json:"extensions"`
-	RootFiles  []fsapi.Entry      `json:"root_files"`
+	System    map[string]any     `json:"system"`
+	FSRoot    string             `json:"fs_root"`
+	Processes []procapi.ProcView `json:"processes"`
+	RootFiles []fsapi.Entry      `json:"root_files"`
 }
 
-func (s *Server) info(ctx context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.CallToolResult, infoOut, error) {
+func (s *Server) info(_ context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.CallToolResult, infoOut, error) {
 	hostname, _ := os.Hostname()
 	rootFiles, _ := s.fs.List("/")
 	return nil, infoOut{
@@ -259,16 +222,8 @@ func (s *Server) info(ctx context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*
 			"num_cpu":    strconv.Itoa(runtime.NumCPU()),
 			"go_version": runtime.Version(),
 		},
-		FSRoot:     s.fs.Root,
-		Processes:  s.proc.List(),
-		Extensions: s.ext.Statuses(ctx),
-		RootFiles:  rootFiles,
+		FSRoot:    s.fs.Root,
+		Processes: s.proc.List(),
+		RootFiles: rootFiles,
 	}, nil
-}
-
-func mustExt(ok bool) error {
-	if !ok {
-		return errUnknownExt
-	}
-	return nil
 }

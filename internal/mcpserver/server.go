@@ -1,34 +1,29 @@
-// Package mcpserver exposes the sandbox (filesystem, exec, processes,
-// extensions) to agents as Model Context Protocol tools over Streamable HTTP.
+// Package mcpserver exposes the sandbox (filesystem, exec, processes)
+// to agents as Model Context Protocol tools over Streamable HTTP.
 package mcpserver
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"computer-use/internal/audit"
 	"computer-use/internal/execapi"
-	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/procapi"
 )
-
-var errUnknownExt = errors.New("unknown extension")
 
 // Server bundles the sandbox services exposed as MCP tools.
 type Server struct {
 	fs    *fsapi.Service
 	exec  *execapi.Service
 	proc  *procapi.Manager
-	ext   *extapi.Manager
 	audit *audit.Recorder
 }
 
 // New creates an MCP Server over the given services.
-func New(fs *fsapi.Service, exec *execapi.Service, proc *procapi.Manager, ext *extapi.Manager, aud *audit.Recorder) *Server {
-	return &Server{fs: fs, exec: exec, proc: proc, ext: ext, audit: aud}
+func New(fs *fsapi.Service, exec *execapi.Service, proc *procapi.Manager, aud *audit.Recorder) *Server {
+	return &Server{fs: fs, exec: exec, proc: proc, audit: aud}
 }
 
 // mcpServer builds the underlying *mcp.Server with all tools registered.
@@ -56,10 +51,8 @@ func (s *Server) mcpServer() *mcp.Server {
 	mcp.AddTool(srv, &mcp.Tool{Name: "proc_logs", Description: "Get the buffered stdout/stderr log lines of a background process."}, s.procLogs)
 	mcp.AddTool(srv, &mcp.Tool{Name: "proc_stop", Description: "Send SIGTERM to a background process group."}, s.procStop)
 
-	// Extensions + info
-	mcp.AddTool(srv, &mcp.Tool{Name: "ext_list", Description: "List installable extensions (e.g. browser-use) and whether each is installed."}, s.extList)
-	mcp.AddTool(srv, &mcp.Tool{Name: "ext_install", Description: "Install an extension; runs in the background and returns a process id to poll."}, s.extInstall)
-	mcp.AddTool(srv, &mcp.Tool{Name: "info", Description: "Snapshot of the machine: system facts, running processes, extensions, and root files."}, s.info)
+	// Info
+	mcp.AddTool(srv, &mcp.Tool{Name: "info", Description: "Snapshot of the machine: system facts, running processes, and root files."}, s.info)
 
 	return srv
 }

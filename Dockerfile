@@ -93,6 +93,19 @@ RUN useradd --create-home --uid 10001 appuser \
     && mkdir -p /opt/data /opt/go \
     && chown -R appuser:appuser /opt/data /opt/venv /opt/go
 
+# browser-use + Playwright Chromium. Installed as root because the browser needs
+# system libs (libX11, libgbm, libnss3, ...) pulled in via `playwright
+# install-deps`, which runs apt. Bakes the browser-use extension in so
+# /api/v1/extensions reports it installed and the exec/procs APIs can drive a
+# real headless Chromium out of the box. Browsers live in a shared path owned by
+# appuser. Adds ~1GB; drop this block if you don't need browser automation.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN pip install --no-cache-dir browser-use playwright \
+    && python3 -m playwright install-deps chromium \
+    && python3 -m playwright install chromium \
+    && rm -rf /var/lib/apt/lists/* \
+    && chown -R appuser:appuser /opt/venv /opt/ms-playwright
+
 WORKDIR /app
 COPY --from=build /out/api /usr/local/bin/api
 
