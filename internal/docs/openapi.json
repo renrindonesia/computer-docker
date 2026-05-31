@@ -1,0 +1,264 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "computer-use API",
+    "description": "Filesystem and command-execution REST API. All /api/v1 routes require an API key (query param `key` or header `X-API-Key`) when API_KEY is set.",
+    "version": "0.1.0"
+  },
+  "servers": [{ "url": "/" }],
+  "components": {
+    "securitySchemes": {
+      "apiKeyQuery": { "type": "apiKey", "in": "query", "name": "key" },
+      "apiKeyHeader": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+    },
+    "schemas": {
+      "Entry": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "is_dir": { "type": "boolean" },
+          "size": { "type": "integer" },
+          "mode": { "type": "string" },
+          "mod_time": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } }
+      },
+      "ExecRequest": {
+        "type": "object",
+        "required": ["command"],
+        "properties": {
+          "command": { "type": "string", "example": "ls" },
+          "args": { "type": "array", "items": { "type": "string" }, "example": ["-la"] },
+          "dir": { "type": "string" },
+          "stdin": { "type": "string" },
+          "timeout_sec": { "type": "integer", "example": 30 }
+        }
+      },
+      "ExecResult": {
+        "type": "object",
+        "properties": {
+          "stdout": { "type": "string" },
+          "stderr": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "timed_out": { "type": "boolean" },
+          "duration_ms": { "type": "integer" }
+        }
+      }
+    }
+  },
+  "security": [{ "apiKeyQuery": [] }, { "apiKeyHeader": [] }],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Health check",
+        "security": [],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/fs/list": {
+      "get": {
+        "summary": "List directory entries",
+        "parameters": [
+          { "name": "path", "in": "query", "schema": { "type": "string" }, "description": "Path relative to FS root" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "entries": { "type": "array", "items": { "$ref": "#/components/schemas/Entry" } }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Path escapes root", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/fs/stat": {
+      "get": {
+        "summary": "Stat a path",
+        "parameters": [{ "name": "path", "in": "query", "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Entry", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Entry" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/fs/read": {
+      "get": {
+        "summary": "Read file contents",
+        "parameters": [{ "name": "path", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "File content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "path": { "type": "string" }, "content": { "type": "string" } }
+                }
+              }
+            }
+          },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/fs/write": {
+      "post": {
+        "summary": "Write (create/overwrite) a file",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["path"],
+                "properties": { "path": { "type": "string" }, "content": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Written" }, "400": { "description": "Bad request" } }
+      }
+    },
+    "/api/v1/fs/mkdir": {
+      "post": {
+        "summary": "Create a directory tree",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Created" } }
+      }
+    },
+    "/api/v1/fs/delete": {
+      "delete": {
+        "summary": "Delete a file or directory tree",
+        "parameters": [{ "name": "path", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" }, "400": { "description": "Bad request" } }
+      }
+    },
+    "/api/v1/fs/move": {
+      "post": {
+        "summary": "Move/rename a file or directory",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["from", "to"], "properties": { "from": { "type": "string" }, "to": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Moved" }, "400": { "description": "Bad request" } }
+      }
+    },
+    "/api/v1/fs/copy": {
+      "post": {
+        "summary": "Copy a file",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["from", "to"], "properties": { "from": { "type": "string" }, "to": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Copied" } }
+      }
+    },
+    "/api/v1/fs/chmod": {
+      "post": {
+        "summary": "Change file mode (octal)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["path", "mode"], "properties": { "path": { "type": "string" }, "mode": { "type": "string", "example": "0755" } } } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/fs/patch": {
+      "post": {
+        "summary": "Apply an apply_patch-style edit (replace unique block)",
+        "description": "Replaces the unique occurrence of `old` with `new`. Empty `old` creates/overwrites. 409 if not found or ambiguous.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" }, "old": { "type": "string" }, "new": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Patched" }, "409": { "description": "Context not found or ambiguous" } }
+      }
+    },
+    "/api/v1/fs/search": {
+      "get": {
+        "summary": "Search files by name glob and/or content substring",
+        "parameters": [
+          { "name": "path", "in": "query", "schema": { "type": "string" }, "description": "Root to walk" },
+          { "name": "glob", "in": "query", "schema": { "type": "string" }, "example": "*.go" },
+          { "name": "content", "in": "query", "schema": { "type": "string" }, "description": "Substring to grep" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" }, "description": "Max hits (default 200)" }
+        ],
+        "responses": { "200": { "description": "Hits" } }
+      }
+    },
+    "/api/v1/fs/upload": {
+      "post": {
+        "summary": "Upload file(s) via multipart form (field: file)",
+        "parameters": [{ "name": "path", "in": "query", "schema": { "type": "string" }, "description": "Target directory" }],
+        "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } } } } } },
+        "responses": { "200": { "description": "Written" }, "400": { "description": "Bad request" } }
+      }
+    },
+    "/api/v1/fs/download": {
+      "get": {
+        "summary": "Download raw file bytes (binary-safe)",
+        "parameters": [{ "name": "path", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "File stream", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/exec": {
+      "post": {
+        "summary": "Execute a command (synchronous, timeout-bounded)",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExecRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExecResult" } } } },
+          "400": { "description": "Bad request" }
+        }
+      }
+    },
+    "/api/v1/procs": {
+      "get": {
+        "summary": "List background processes",
+        "responses": { "200": { "description": "Processes" } }
+      },
+      "post": {
+        "summary": "Start a background process",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["command"], "properties": { "command": { "type": "string" }, "args": { "type": "array", "items": { "type": "string" } }, "dir": { "type": "string" }, "env": { "type": "object", "additionalProperties": { "type": "string" } } } } } } },
+        "responses": { "201": { "description": "Started" }, "400": { "description": "Bad request" } }
+      }
+    },
+    "/api/v1/procs/{id}": {
+      "get": {
+        "summary": "Get a process",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Process" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Stop and remove a process",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Removed" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/procs/{id}/logs": {
+      "get": {
+        "summary": "Get buffered logs (last 1000 lines, stdout+stderr)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Logs" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/procs/{id}/stop": {
+      "post": {
+        "summary": "Send SIGTERM to a process group",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Stopped" }, "404": { "description": "Not found" } }
+      }
+    }
+  }
+}
