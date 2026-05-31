@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: vet · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: gofmt check
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: test (race + coverage)
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+
+      - name: build
+        run: go build -trimpath -ldflags="-s -w" -o bin/api ./cmd/api
+
+  docker-build:
+    name: docker build (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build image
+        run: docker build -t computer-docker:ci .
+
+      - name: run + health check
+        run: |
+          docker run -d --name ci -p 8080:8080 -e API_KEY=ci computer-docker:ci
+          for i in $(seq 1 15); do
+            if curl -fsS localhost:8080/healthz; then ok=1; break; fi
+            sleep 1
+          done
+          docker logs ci
+          docker rm -f ci
+          [ "$ok" = "1" ] || { echo "::error::health check failed"; exit 1; }

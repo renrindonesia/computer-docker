@@ -8,6 +8,7 @@
 
 <br>
 
+[![CI](https://github.com/renrindonesia/computer-docker/actions/workflows/ci.yml/badge.svg)](https://github.com/renrindonesia/computer-docker/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ubuntu%2024.04-2496ED?logo=docker&logoColor=white)](./Dockerfile)
 [![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Deps](https://img.shields.io/badge/3rd--party%20deps-0-success)](./go.mod)
@@ -213,6 +214,30 @@ internal/handler     HTTP handlers + route table + /info
 internal/middleware  logging · panic recovery · API-key auth
 internal/docs        embedded OpenAPI + Swagger UI
 ```
+
+---
+
+## 🚀 CI / CD
+
+| Workflow | Trigger | Does |
+|---|---|---|
+| **CI** (`.github/workflows/ci.yml`) | push / PR to `main` | gofmt check · `go vet` · `go test -race` + coverage · build · Docker build + health-check smoke |
+| **Release** (`.github/workflows/release.yml`) | push tag `v*` | multi-arch (`amd64`+`arm64`) build, push to **Docker Hub** + **GHCR** |
+
+**Cut a release:**
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+**Required repo secrets** (Settings → Secrets → Actions):
+
+| Secret | For |
+|---|---|
+| `DOCKERHUB_USERNAME` | Docker Hub login |
+| `DOCKERHUB_TOKEN` | Docker Hub access token ([create here](https://hub.docker.com/settings/security)) |
+
+> GHCR uses the built-in `GITHUB_TOKEN` — no setup needed.
 
 ---
 
