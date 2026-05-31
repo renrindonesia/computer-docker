@@ -16,6 +16,7 @@ import (
 	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/handler"
+	"computer-use/internal/mcpserver"
 	"computer-use/internal/middleware"
 	"computer-use/internal/procapi"
 )
@@ -39,6 +40,11 @@ func main() {
 	mux := http.NewServeMux()
 	h.Routes(mux)
 	docs.Register(mux)
+
+	// MCP over Streamable HTTP — same services, same auth, mounted at /mcp.
+	mcpSrv := mcpserver.New(fsSvc, execSvc, procMgr, extMgr)
+	mux.Handle("/mcp", mcpSrv.Handler())
+	mux.Handle("/mcp/", mcpSrv.Handler())
 
 	// /healthz, /docs and /openapi.json are public; everything else needs the key.
 	auth := middleware.APIKey(cfg.APIKey, "/healthz", "/docs", "/openapi.json")

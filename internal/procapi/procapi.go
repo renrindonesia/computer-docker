@@ -25,11 +25,12 @@ const (
 // ringBuffer keeps the last N log lines (combined stdout+stderr).
 type ringBuffer struct {
 	mu    sync.Mutex
-	lines []logLine
+	lines []LogLine
 	max   int
 }
 
-type logLine struct {
+// LogLine is one captured output line from a process.
+type LogLine struct {
 	Stream string    `json:"stream"`
 	Text   string    `json:"text"`
 	At     time.Time `json:"at"`
@@ -38,16 +39,16 @@ type logLine struct {
 func (r *ringBuffer) add(stream, text string, at time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.lines = append(r.lines, logLine{stream, text, at})
+	r.lines = append(r.lines, LogLine{stream, text, at})
 	if len(r.lines) > r.max {
 		r.lines = r.lines[len(r.lines)-r.max:]
 	}
 }
 
-func (r *ringBuffer) snapshot() []logLine {
+func (r *ringBuffer) snapshot() []LogLine {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]logLine, len(r.lines))
+	out := make([]LogLine, len(r.lines))
 	copy(out, r.lines)
 	return out
 }
@@ -248,7 +249,7 @@ func (m *Manager) Get(id string) (ProcView, error) {
 }
 
 // Logs returns the buffered log lines for a process.
-func (m *Manager) Logs(id string) ([]logLine, error) {
+func (m *Manager) Logs(id string) ([]LogLine, error) {
 	p, err := m.find(id)
 	if err != nil {
 		return nil, err

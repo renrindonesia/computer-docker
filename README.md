@@ -173,6 +173,37 @@ curl ".../procs/$P/logs?key=$K"
 
 ---
 
+## 🤖 Connect your agent (MCP)
+
+The sandbox speaks **Model Context Protocol** over Streamable HTTP at **`/mcp`** — point any MCP client at it and your agent gets all the tools natively, no hand-written HTTP.
+
+**Endpoint:** `http://HOST:8080/mcp` · **Auth:** `X-API-Key` header (or `?key=`)
+
+```jsonc
+// MCP client config
+{
+  "mcpServers": {
+    "computer-docker": {
+      "url": "http://localhost:8080/mcp",
+      "headers": { "X-API-Key": "changeme" }
+    }
+  }
+}
+```
+
+**15 tools** exposed:
+
+| Group | Tools |
+|---|---|
+| 📁 files | `fs_list` · `fs_read` · `fs_write` · `fs_edit` · `fs_search` · `fs_move` · `fs_remove` |
+| 📜 shell | `exec` |
+| ⚙️ procs | `proc_start` · `proc_list` · `proc_logs` · `proc_stop` |
+| 🧩 system | `ext_list` · `ext_install` · `info` |
+
+> Same services, same API key as the REST API — REST stays available for non-MCP clients.
+
+---
+
 ## ⚙️ Config
 
 | Var | Default | Meaning |
