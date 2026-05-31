@@ -102,6 +102,16 @@ ENV ADDR=:8080 \
     EXEC_MAX_TIMEOUT_SEC=300
 
 USER appuser
+
+# Default git identity + initialize a repo in the data jail so agents (claude
+# code, codex) can commit/diff out of the box. NOTE: if /opt/data is replaced by
+# a volume mount at runtime, re-run `git init` inside it.
+RUN git config --global user.name "computer-docker" \
+    && git config --global user.email "agent@computer-docker.local" \
+    && git config --global init.defaultBranch main \
+    && git config --global --add safe.directory /opt/data \
+    && git init -q /opt/data
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
