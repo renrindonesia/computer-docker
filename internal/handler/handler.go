@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"computer-use/internal/execapi"
+	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/procapi"
 )
@@ -16,17 +17,23 @@ type Handler struct {
 	fs     *fsapi.Service
 	exec   *execapi.Service
 	procs  *procapi.Manager
+	ext    *extapi.Manager
 	logger *slog.Logger
 }
 
 // New creates a Handler.
-func New(fs *fsapi.Service, exec *execapi.Service, procs *procapi.Manager, logger *slog.Logger) *Handler {
-	return &Handler{fs: fs, exec: exec, procs: procs, logger: logger}
+func New(fs *fsapi.Service, exec *execapi.Service, procs *procapi.Manager, ext *extapi.Manager, logger *slog.Logger) *Handler {
+	return &Handler{fs: fs, exec: exec, procs: procs, ext: ext, logger: logger}
 }
 
 // Routes registers all endpoints on mux.
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /healthz", h.health)
+	mux.HandleFunc("GET /api/v1/info", h.info)
+
+	// extensions
+	mux.HandleFunc("GET /api/v1/extensions", h.extList)
+	mux.HandleFunc("POST /api/v1/extensions/{name}/install", h.extInstall)
 
 	// filesystem
 	mux.HandleFunc("GET /api/v1/fs/list", h.fsList)

@@ -24,7 +24,7 @@ func Load(envPath string) Config {
 	return Config{
 		Addr:           envOr("ADDR", ":8080"),
 		APIKey:         os.Getenv("API_KEY"),
-		FSRoot:         envOr("FS_ROOT", "./data"),
+		FSRoot:         envOr("FS_ROOT", "/opt/data"),
 		ExecTimeout:    secs("EXEC_TIMEOUT_SEC", 30),
 		ExecMaxTimeout: secs("EXEC_MAX_TIMEOUT_SEC", 300),
 	}

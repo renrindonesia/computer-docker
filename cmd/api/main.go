@@ -13,6 +13,7 @@ import (
 	"computer-use/internal/config"
 	"computer-use/internal/docs"
 	"computer-use/internal/execapi"
+	"computer-use/internal/extapi"
 	"computer-use/internal/fsapi"
 	"computer-use/internal/handler"
 	"computer-use/internal/middleware"
@@ -31,8 +32,9 @@ func main() {
 	}
 	execSvc := execapi.New(fsSvc.Root, cfg.ExecTimeout, cfg.ExecMaxTimeout)
 	procMgr := procapi.NewManager(fsSvc.Root)
+	extMgr := extapi.NewManager()
 
-	h := handler.New(fsSvc, execSvc, procMgr, logger)
+	h := handler.New(fsSvc, execSvc, procMgr, extMgr, logger)
 
 	mux := http.NewServeMux()
 	h.Routes(mux)
