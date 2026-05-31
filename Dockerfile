@@ -22,7 +22,8 @@ ARG NODE_MAJOR=22
 ARG KOTLIN_VERSION=2.1.10
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Base tools + apt-provided languages (Python 3.12, Java 21, PHP 8.3, Ruby 3.x).
+# Base tools + apt-provided languages (Python 3.12, Java 21, PHP 8.3, Ruby 3.x)
+# + CLI power tools agents reach for (ripgrep, fd, fzf, jq, bat, tree).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
@@ -37,12 +38,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         openjdk-21-jdk-headless \
         php-cli \
         ruby-full \
-    && rm -rf /var/lib/apt/lists/*
+        ripgrep \
+        fd-find \
+        fzf \
+        jq \
+        bat \
+        tree \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
+    && ln -s "$(command -v batcat)" /usr/local/bin/bat
+
+# gh (GitHub CLI) from the official apt repo, plus yq as a static binary.
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture)" \
+        -o /usr/local/bin/yq \
+    && chmod +x /usr/local/bin/yq
 
 # Node.js (NodeSource) — latest LTS major.
 RUN curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# AI coding agents (Node CLIs): Claude Code + OpenAI Codex.
+RUN npm install -g @anthropic-ai/claude-code @openai/codex \
+    && npm cache clean --force
 
 # Go — copied from the build stage (exact toolchain used to build the binary).
 COPY --from=build /usr/local/go /usr/local/go
