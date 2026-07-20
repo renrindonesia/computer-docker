@@ -210,6 +210,13 @@
         "responses": { "200": { "description": "File stream", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } }, "404": { "description": "Not found" } }
       }
     },
+    "/api/v1/fs/view": {
+      "get": {
+        "summary": "View a file inline (renders in-browser; images, video/audio with Range/seek support)",
+        "parameters": [{ "name": "path", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "File served inline with MIME type from extension" }, "206": { "description": "Partial content (Range request)" }, "404": { "description": "Not found" } }
+      }
+    },
     "/api/v1/exec": {
       "post": {
         "summary": "Execute a command (synchronous, timeout-bounded)",

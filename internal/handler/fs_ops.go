@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"computer-use/internal/fsapi"
 )
@@ -170,4 +172,42 @@ func (h *Handler) fsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(abs)+"\"")
 	w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
 	_, _ = io.Copy(w, f)
+}
+
+// fsView serves a file inline so browsers render it in place — images show as
+// images, video/audio stream in a player — instead of downloading. It sets the
+// MIME type from the file extension and delegates to http.ServeContent, which
+// handles Range requests (needed for video/audio seeking) and conditional
+// caching headers.
+func (h *Handler) fsView(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		writeErr(w, http.StatusBadRequest, "path required")
+		return
+	}
+	abs, err := h.fs.AbsFor(path)
+	if err != nil {
+		h.fsErr(w, err)
+		return
+	}
+	f, err := os.Open(abs)
+	if err != nil {
+		h.fsErr(w, err)
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.IsDir() {
+		writeErr(w, http.StatusBadRequest, "not a file")
+		return
+	}
+
+	// Content-Type from extension; ServeContent sniffs the first 512 bytes when
+	// the extension is unknown. filename gives the browser a name if the user
+	// does choose to save.
+	if ct := mime.TypeByExtension(filepath.Ext(abs)); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	w.Header().Set("Content-Disposition", "inline; filename=\""+strings.ReplaceAll(filepath.Base(abs), `"`, "")+"\"")
+	http.ServeContent(w, r, filepath.Base(abs), info.ModTime(), f)
 }

@@ -46,6 +46,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/fs/search", h.fsSearch)
 	mux.HandleFunc("POST /api/v1/fs/upload", h.fsUpload)
 	mux.HandleFunc("GET /api/v1/fs/download", h.fsDownload)
+	mux.HandleFunc("GET /api/v1/fs/view", h.fsView)
 
 	// exec (synchronous)
 	mux.HandleFunc("POST /api/v1/exec", h.execRun)

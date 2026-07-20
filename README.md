@@ -141,7 +141,8 @@ Base: `/api/v1` · Auth: `?key=` or `X-API-Key` · FS jailed to **`/opt/data`**
 | `POST` | `/fs/patch` | `{path, old, new}` — apply_patch-style unique-block edit |
 | `GET` | `/fs/search?path=&glob=&content=` | name glob + content grep |
 | `POST` | `/fs/upload?path=` | multipart, binary-safe |
-| `GET` | `/fs/download?path=` | raw byte stream |
+| `GET` | `/fs/download?path=` | raw byte stream (forces download) |
+| `GET` | `/fs/view?path=` | inline render — images show, video/audio stream (Range/seek) |
 
 </details>
 
