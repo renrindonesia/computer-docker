@@ -28,23 +28,23 @@ if command -v Xvfb >/dev/null 2>&1; then
 
     command -v fluxbox >/dev/null 2>&1 && start fluxbox
 
-    # x11vnc: password-protected if VNC_PASSWORD is set, otherwise open. An open
-    # session on a public domain exposes the desktop to anyone — always set
-    # VNC_PASSWORD in production.
-    if [ -n "$VNC_PASSWORD" ]; then
-        AUTH="-passwd $VNC_PASSWORD"
-    else
-        echo "entrypoint: WARNING VNC_PASSWORD unset — desktop is unauthenticated" >&2
-        AUTH="-nopw"
-    fi
-    # shellcheck disable=SC2086
-    command -v x11vnc >/dev/null 2>&1 && \
-        start x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -quiet $AUTH
+    # x11vnc + websockify expose the desktop under /vnc/, which sits OUTSIDE the
+    # API key (noVNC's relative asset/websocket URLs can't carry ?key=). The only
+    # thing standing between the public internet and full mouse/keyboard control
+    # of this machine is the VNC password — so fail closed: if VNC_PASSWORD is
+    # unset we do NOT start the VNC bridge at all. The API keeps running; the
+    # /vnc/ proxy just returns 502 until a password is configured.
+    if [ -z "$VNC_PASSWORD" ]; then
+        echo "entrypoint: VNC_PASSWORD unset — NOT exposing desktop (set VNC_PASSWORD to enable /vnc/)" >&2
+    elif command -v x11vnc >/dev/null 2>&1; then
+        start x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -quiet \
+            -passwd "$VNC_PASSWORD"
 
-    # websockify serves the noVNC web client and bridges browser websockets to
-    # the raw VNC port. This is what the Go proxy forwards /vnc/ to.
-    if command -v websockify >/dev/null 2>&1 && [ -d "$NOVNC_WEB" ]; then
-        start websockify --web "$NOVNC_WEB" "$NOVNC_PORT" "localhost:${VNC_PORT}"
+        # websockify serves the noVNC web client and bridges browser websockets
+        # to the raw VNC port. This is what the Go proxy forwards /vnc/ to.
+        if command -v websockify >/dev/null 2>&1 && [ -d "$NOVNC_WEB" ]; then
+            start websockify --web "$NOVNC_WEB" "$NOVNC_PORT" "localhost:${VNC_PORT}"
+        fi
     fi
 else
     echo "entrypoint: Xvfb not installed — skipping display stack" >&2

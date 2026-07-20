@@ -221,7 +221,7 @@ The sandbox speaks **Model Context Protocol** over Streamable HTTP at **`/mcp`**
 | `EXEC_MAX_TIMEOUT_SEC` | `300` | hard cap |
 | `VNC_UPSTREAM` | `http://127.0.0.1:6080` | noVNC backend; empty disables `/vnc/` |
 | `VNC_FRAME_ANCESTORS` | `*` | who may `<iframe>` the viewer (CSP `frame-ancestors`) |
-| `VNC_PASSWORD` | _(empty)_ | VNC session password; empty = **unauthenticated** |
+| `VNC_PASSWORD` | _(empty)_ | VNC session password; **empty disables `/vnc/`** (fail closed) |
 | `SCREEN_GEOMETRY` | `1280x800x24` | virtual screen size |
 
 Loaded from `.env`, then real env wins. Copy `.env.example` → `.env`.
@@ -258,7 +258,9 @@ mount) · `autoconnect=1` (skip connect button) · `resize=scale` (fit the ifram
 
 Notes:
 - `/vnc/` is **not** behind the API key — noVNC's relative asset/websocket URLs
-  can't carry `?key=`. Protect the session with `VNC_PASSWORD` instead.
+  can't carry `?key=`. The session is protected by `VNC_PASSWORD` instead, which
+  is **mandatory**: with no password the desktop bridge is not started (fail
+  closed) and `/vnc/` returns 502. Pass it in the URL as `&password=…`.
 - The proxy strips `X-Frame-Options` and sets `Content-Security-Policy:
   frame-ancestors <VNC_FRAME_ANCESTORS>`, so restrict it to your own origins in
   production (e.g. `VNC_FRAME_ANCESTORS=https://app.example.com`).
