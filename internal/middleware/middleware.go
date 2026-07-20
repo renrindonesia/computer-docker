@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"bufio"
+	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -34,6 +37,16 @@ func (r *statusRecorder) Flush() {
 	if f, ok := r.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+// Hijack delegates to the underlying ResponseWriter so websocket upgrades work
+// through the logging wrapper — the /vnc/ reverse proxy hijacks the connection
+// to bridge noVNC's websocket, which fails if the wrapper hides Hijacker.
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := r.ResponseWriter.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
 }
 
 // Logging logs each request with method, path, status, duration.
