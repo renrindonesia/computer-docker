@@ -236,26 +236,26 @@ x11vnc → websockify → **noVNC**, reverse-proxied under `/vnc/` on the same
 domain — no extra port to expose. Any headful browser or GUI the agent launches
 shows up here.
 
-Open in a tab:
+Open in a tab — one param, `?key=` (the same API key; it doubles as the VNC
+password). `/vnc/` redirects to the viewer with all the boilerplate filled in:
 
 ```
-https://<host>/vnc/vnc.html?path=vnc/websockify&autoconnect=1&resize=scale
+https://<host>/vnc/?key=YOURKEY
 ```
 
 Embed **anywhere** in an iframe (framing is allowed via `VNC_FRAME_ANCESTORS`):
 
 ```html
 <iframe
-  src="https://<host>/vnc/vnc.html?path=vnc/websockify&autoconnect=1&resize=scale"
+  src="https://<host>/vnc/?key=YOURKEY"
   style="width:100%;height:600px;border:0;"
   allow="fullscreen">
 </iframe>
 ```
 
-Query params: `path=vnc/websockify` (websocket endpoint, must match the proxy
-mount) · `autoconnect=1` (skip connect button) · `resize=scale` (fit the iframe)
-· `view_only=1` (display without letting viewers control input) · `password=…`
-(if `VNC_PASSWORD` is set).
+Optional params on `/vnc/`: `view_only=1` (display without letting viewers
+control input). To skip the redirect and drive the viewer directly, hit
+`/vnc/vnc.html?path=vnc/websockify&autoconnect=1&resize=scale&password=YOURKEY`.
 
 Notes:
 - `/vnc/` is **not** behind the API key — noVNC's relative asset/websocket URLs

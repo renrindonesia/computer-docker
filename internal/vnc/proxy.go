@@ -52,7 +52,30 @@ func Handler(upstream, frameAncestors string) (http.Handler, error) {
 		resp.Header.Set("Content-Security-Policy", "frame-ancestors "+frameAncestors)
 		return nil
 	}
-	return proxy, nil
+
+	// Convenience entry point: hitting /vnc/ (or /vnc) redirects to the noVNC
+	// viewer with all the boilerplate query params filled in, and — since the
+	// VNC password defaults to API_KEY — reuses the same ?key= as the password.
+	// So one URL, one secret: /vnc/?key=SECRET. Extra params (view_only) pass
+	// through. Everything else (vnc.html, assets, websocket) hits the proxy.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/vnc" || r.URL.Path == "/vnc/" {
+			q := url.Values{}
+			q.Set("path", "vnc/websockify")
+			q.Set("autoconnect", "1")
+			q.Set("resize", "scale")
+			if key := r.URL.Query().Get("key"); key != "" {
+				q.Set("password", key)
+			}
+			if vo := r.URL.Query().Get("view_only"); vo != "" {
+				q.Set("view_only", vo)
+			}
+			w.Header().Set("Content-Security-Policy", "frame-ancestors "+frameAncestors)
+			http.Redirect(w, r, "/vnc/vnc.html?"+q.Encode(), http.StatusFound)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	}), nil
 }
 
 // stripPrefix returns path with prefix removed, guaranteeing a leading slash.
