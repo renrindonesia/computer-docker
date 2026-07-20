@@ -202,12 +202,44 @@ func (h *Handler) fsView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Content-Type from extension; ServeContent sniffs the first 512 bytes when
-	// the extension is unknown. filename gives the browser a name if the user
-	// does choose to save.
-	if ct := mime.TypeByExtension(filepath.Ext(abs)); ct != "" {
+	// Files under FS_ROOT are attacker-controllable (agents write there), and
+	// this endpoint serves on the app's own origin. Rendering e.g. an .html or
+	// .svg inline would execute its script in that origin — stored XSS that
+	// could read the API key or drive /vnc/. So only render a fixed allowlist of
+	// non-executable media inline; force everything else to download as opaque
+	// bytes. Defense in depth: never sniff the type, and sandbox the response.
+	safeName := strings.ReplaceAll(filepath.Base(abs), `"`, "")
+	ct := mime.TypeByExtension(filepath.Ext(abs))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox")
+	if inlineSafeMIME[ct] {
 		w.Header().Set("Content-Type", ct)
+		w.Header().Set("Content-Disposition", "inline; filename=\""+safeName+"\"")
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+safeName+"\"")
 	}
-	w.Header().Set("Content-Disposition", "inline; filename=\""+strings.ReplaceAll(filepath.Base(abs), `"`, "")+"\"")
-	http.ServeContent(w, r, filepath.Base(abs), info.ModTime(), f)
+	http.ServeContent(w, r, safeName, info.ModTime(), f)
+}
+
+// inlineSafeMIME lists content types safe to render inline on the app origin —
+// images, video and audio, which browsers display but do not execute as script.
+// Anything not here (html, svg, js, pdf, unknown) is served as a download.
+var inlineSafeMIME = map[string]bool{
+	"image/png":  true,
+	"image/jpeg": true,
+	"image/gif":  true,
+	"image/webp": true,
+	"image/avif": true,
+	"image/bmp":  true,
+	"image/tiff": true,
+	"video/mp4":  true,
+	"video/webm": true,
+	"video/ogg":  true,
+	"audio/mpeg": true,
+	"audio/ogg":  true,
+	"audio/wav":  true,
+	"audio/webm": true,
+	"audio/aac":  true,
+	"audio/flac": true,
 }

@@ -212,7 +212,7 @@
     },
     "/api/v1/fs/view": {
       "get": {
-        "summary": "View a file inline (renders in-browser; images, video/audio with Range/seek support)",
+        "summary": "View a file inline. Images/video/audio render in-browser (Range/seek); other types (html, svg, js, pdf, unknown) are force-downloaded to prevent XSS on the app origin.",
         "parameters": [{ "name": "path", "in": "query", "required": true, "schema": { "type": "string" } }],
         "responses": { "200": { "description": "File served inline with MIME type from extension" }, "206": { "description": "Partial content (Range request)" }, "404": { "description": "Not found" } }
       }

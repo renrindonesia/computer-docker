@@ -142,7 +142,7 @@ Base: `/api/v1` · Auth: `?key=` or `X-API-Key` · FS jailed to **`/opt/data`**
 | `GET` | `/fs/search?path=&glob=&content=` | name glob + content grep |
 | `POST` | `/fs/upload?path=` | multipart, binary-safe |
 | `GET` | `/fs/download?path=` | raw byte stream (forces download) |
-| `GET` | `/fs/view?path=` | inline render — images show, video/audio stream (Range/seek) |
+| `GET` | `/fs/view?path=` | inline render for images/video/audio (Range/seek); other types download |
 
 </details>
 
