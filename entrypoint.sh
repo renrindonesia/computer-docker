@@ -41,14 +41,26 @@ if command -v Xvfb >/dev/null 2>&1; then
     VNC_PW="${VNC_PASSWORD:-$API_KEY}"
     if [ -z "$VNC_PW" ]; then
         echo "entrypoint: no API_KEY/VNC_PASSWORD — NOT exposing desktop (set one to enable /vnc/)" >&2
-    elif command -v x11vnc >/dev/null 2>&1; then
+    elif ! command -v x11vnc >/dev/null 2>&1; then
+        echo "entrypoint: x11vnc not installed — /vnc/ disabled" >&2
+    elif ! command -v websockify >/dev/null 2>&1; then
+        echo "entrypoint: websockify not installed — /vnc/ disabled" >&2
+    else
         start x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -quiet \
             -passwd "$VNC_PW"
 
-        # websockify serves the noVNC web client and bridges browser websockets
-        # to the raw VNC port. This is what the Go proxy forwards /vnc/ to.
-        if command -v websockify >/dev/null 2>&1 && [ -d "$NOVNC_WEB" ]; then
-            start websockify --web "$NOVNC_WEB" "$NOVNC_PORT" "localhost:${VNC_PORT}"
+        # Locate the noVNC web assets — the Debian package path varies by
+        # release. websockify --web serves them; the Go proxy forwards /vnc/ here.
+        WEB=""
+        for d in "$NOVNC_WEB" /usr/share/novnc /usr/share/webapps/novnc /usr/lib/novnc; do
+            if [ -n "$d" ] && [ -d "$d" ]; then WEB="$d"; break; fi
+        done
+        if [ -z "$WEB" ]; then
+            echo "entrypoint: noVNC web dir not found (looked in /usr/share/novnc etc) — /vnc/ will 404 for assets" >&2
+            start websockify "$NOVNC_PORT" "localhost:${VNC_PORT}"
+        else
+            echo "entrypoint: serving noVNC from $WEB"
+            start websockify --web "$WEB" "$NOVNC_PORT" "localhost:${VNC_PORT}"
         fi
     fi
 else
