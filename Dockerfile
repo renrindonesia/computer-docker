@@ -91,7 +91,8 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Non-root user; owns the venv, GOPATH and the fs jail at /opt/data.
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir -p /opt/data /opt/go \
-    && chown -R appuser:appuser /opt/data /opt/venv /opt/go
+    && chown -R appuser:appuser /opt/data /opt/venv /opt/go \
+    && chmod -R u+rwX /opt/data
 
 # browser-use + Playwright Chromium. Installed as root because the browser needs
 # system libs (libX11, libgbm, libnss3, ...) pulled in via `playwright
@@ -114,7 +115,8 @@ ENV ADDR=:8080 \
     EXEC_TIMEOUT_SEC=30 \
     EXEC_MAX_TIMEOUT_SEC=300
 
-USER appuser
+# Runs as root so bind-mounted volumes at /opt/data are accessible regardless of
+# host ownership (appuser hit permission errors on mounted volumes).
 
 # Default git identity + initialize a repo in the data jail so agents (claude
 # code, codex) can commit/diff out of the box. NOTE: if /opt/data is replaced by
