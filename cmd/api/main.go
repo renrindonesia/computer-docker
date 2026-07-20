@@ -19,6 +19,7 @@ import (
 	"computer-use/internal/mcpserver"
 	"computer-use/internal/middleware"
 	"computer-use/internal/procapi"
+	"computer-use/internal/vnc"
 )
 
 func main() {
@@ -52,8 +53,20 @@ func main() {
 	mux.Handle("/mcp", mcpSrv.Handler())
 	mux.Handle("/mcp/", mcpSrv.Handler())
 
+	// Live desktop: reverse-proxy the noVNC viewer (websockify on a loopback
+	// port) under /vnc/. Protected at the VNC layer, not the API key — noVNC's
+	// relative asset/websocket URLs can't carry ?key=, so /vnc/ is allow-listed.
+	if cfg.VNCUpstream != "" {
+		vncProxy, err := vnc.Handler(cfg.VNCUpstream, cfg.VNCFrameAncestors)
+		if err != nil {
+			logger.Error("vnc proxy init failed", "err", err)
+			os.Exit(1)
+		}
+		mux.Handle("/vnc/", vncProxy)
+	}
+
 	// /healthz, /docs and /openapi.json are public; everything else needs the key.
-	auth := middleware.APIKey(cfg.APIKey, "/healthz", "/docs", "/openapi.json")
+	auth := middleware.APIKey(cfg.APIKey, "/healthz", "/docs", "/openapi.json", "/vnc/")
 	root := middleware.Chain(mux,
 		middleware.Recover(logger),
 		middleware.Logging(logger),

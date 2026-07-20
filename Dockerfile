@@ -44,6 +44,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         jq \
         bat \
         tree \
+        xvfb \
+        x11vnc \
+        fluxbox \
+        novnc \
+        websockify \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
     && ln -s "$(command -v batcat)" /usr/local/bin/bat
@@ -109,11 +114,14 @@ RUN pip install --no-cache-dir browser-use playwright \
 
 WORKDIR /app
 COPY --from=build /out/api /usr/local/bin/api
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENV ADDR=:8080 \
     FS_ROOT=/opt/data \
     EXEC_TIMEOUT_SEC=30 \
-    EXEC_MAX_TIMEOUT_SEC=300
+    EXEC_MAX_TIMEOUT_SEC=300 \
+    DISPLAY=:99
 
 # Runs as root so bind-mounted volumes at /opt/data are accessible regardless of
 # host ownership (appuser hit permission errors on mounted volumes).
@@ -132,4 +140,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -fsS http://localhost:8080/healthz || exit 1
 
-ENTRYPOINT ["api"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

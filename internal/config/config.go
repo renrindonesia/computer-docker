@@ -11,24 +11,28 @@ import (
 
 // Config holds runtime settings.
 type Config struct {
-	Addr           string
-	APIKey         string
-	FSRoot         string
-	ExecTimeout    time.Duration
-	ExecMaxTimeout time.Duration
-	AuditLog       string
+	Addr              string
+	APIKey            string
+	FSRoot            string
+	ExecTimeout       time.Duration
+	ExecMaxTimeout    time.Duration
+	AuditLog          string
+	VNCUpstream       string
+	VNCFrameAncestors string
 }
 
 // Load reads .env (if present) then env vars, with sensible defaults.
 func Load(envPath string) Config {
 	loadDotEnv(envPath)
 	return Config{
-		Addr:           envOr("ADDR", ":8080"),
-		APIKey:         os.Getenv("API_KEY"),
-		FSRoot:         envOr("FS_ROOT", "/opt/data"),
-		ExecTimeout:    secs("EXEC_TIMEOUT_SEC", 30),
-		ExecMaxTimeout: secs("EXEC_MAX_TIMEOUT_SEC", 300),
-		AuditLog:       os.Getenv("AUDIT_LOG"),
+		Addr:              envOr("ADDR", ":8080"),
+		APIKey:            os.Getenv("API_KEY"),
+		FSRoot:            envOr("FS_ROOT", "/opt/data"),
+		ExecTimeout:       secs("EXEC_TIMEOUT_SEC", 30),
+		ExecMaxTimeout:    secs("EXEC_MAX_TIMEOUT_SEC", 300),
+		AuditLog:          os.Getenv("AUDIT_LOG"),
+		VNCUpstream:       envOr("VNC_UPSTREAM", "http://127.0.0.1:6080"),
+		VNCFrameAncestors: envOr("VNC_FRAME_ANCESTORS", "*"),
 	}
 }
 

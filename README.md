@@ -219,8 +219,50 @@ The sandbox speaks **Model Context Protocol** over Streamable HTTP at **`/mcp`**
 | `FS_ROOT` | `/opt/data` | filesystem jail root |
 | `EXEC_TIMEOUT_SEC` | `30` | default exec timeout |
 | `EXEC_MAX_TIMEOUT_SEC` | `300` | hard cap |
+| `VNC_UPSTREAM` | `http://127.0.0.1:6080` | noVNC backend; empty disables `/vnc/` |
+| `VNC_FRAME_ANCESTORS` | `*` | who may `<iframe>` the viewer (CSP `frame-ancestors`) |
+| `VNC_PASSWORD` | _(empty)_ | VNC session password; empty = **unauthenticated** |
+| `SCREEN_GEOMETRY` | `1280x800x24` | virtual screen size |
 
 Loaded from `.env`, then real env wins. Copy `.env.example` → `.env`.
+
+---
+
+## 🖥️ Live desktop (screen view)
+
+A virtual display (Xvfb + fluxbox) runs in the container and is streamed via
+x11vnc → websockify → **noVNC**, reverse-proxied under `/vnc/` on the same
+domain — no extra port to expose. Any headful browser or GUI the agent launches
+shows up here.
+
+Open in a tab:
+
+```
+https://<host>/vnc/vnc.html?path=vnc/websockify&autoconnect=1&resize=scale
+```
+
+Embed **anywhere** in an iframe (framing is allowed via `VNC_FRAME_ANCESTORS`):
+
+```html
+<iframe
+  src="https://<host>/vnc/vnc.html?path=vnc/websockify&autoconnect=1&resize=scale"
+  style="width:100%;height:600px;border:0;"
+  allow="fullscreen">
+</iframe>
+```
+
+Query params: `path=vnc/websockify` (websocket endpoint, must match the proxy
+mount) · `autoconnect=1` (skip connect button) · `resize=scale` (fit the iframe)
+· `view_only=1` (display without letting viewers control input) · `password=…`
+(if `VNC_PASSWORD` is set).
+
+Notes:
+- `/vnc/` is **not** behind the API key — noVNC's relative asset/websocket URLs
+  can't carry `?key=`. Protect the session with `VNC_PASSWORD` instead.
+- The proxy strips `X-Frame-Options` and sets `Content-Security-Policy:
+  frame-ancestors <VNC_FRAME_ANCESTORS>`, so restrict it to your own origins in
+  production (e.g. `VNC_FRAME_ANCESTORS=https://app.example.com`).
+- iframe host must be HTTPS (Railway is); the websocket auto-upgrades to `wss://`.
 
 ---
 
@@ -248,6 +290,7 @@ internal/execapi     synchronous command runner
 internal/procapi     background process manager + log ring buffer
 internal/handler     HTTP handlers + route table + /info
 internal/middleware  logging · panic recovery · API-key auth
+internal/vnc         reverse proxy for the noVNC live-desktop viewer
 internal/docs        embedded OpenAPI + Swagger UI
 ```
 
