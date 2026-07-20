@@ -29,16 +29,21 @@ if command -v Xvfb >/dev/null 2>&1; then
     command -v fluxbox >/dev/null 2>&1 && start fluxbox
 
     # x11vnc + websockify expose the desktop under /vnc/, which sits OUTSIDE the
-    # API key (noVNC's relative asset/websocket URLs can't carry ?key=). The only
-    # thing standing between the public internet and full mouse/keyboard control
-    # of this machine is the VNC password — so fail closed: if VNC_PASSWORD is
-    # unset we do NOT start the VNC bridge at all. The API keeps running; the
-    # /vnc/ proxy just returns 502 until a password is configured.
-    if [ -z "$VNC_PASSWORD" ]; then
-        echo "entrypoint: VNC_PASSWORD unset — NOT exposing desktop (set VNC_PASSWORD to enable /vnc/)" >&2
+    # API key (noVNC's relative asset/websocket URLs can't carry ?key=). The VNC
+    # password is the only guard on full mouse/keyboard control of the machine.
+    # To avoid a second secret it defaults to API_KEY; set VNC_PASSWORD only to
+    # override. Fail closed: with neither set we do NOT start the VNC bridge. The
+    # API keeps running; the /vnc/ proxy just returns 502 until a secret exists.
+    #
+    # NOTE: the RFB protocol truncates passwords to 8 chars, so only the first 8
+    # of the key are actually checked — connect with the same value you use for
+    # ?key= (or just its first 8 chars).
+    VNC_PW="${VNC_PASSWORD:-$API_KEY}"
+    if [ -z "$VNC_PW" ]; then
+        echo "entrypoint: no API_KEY/VNC_PASSWORD — NOT exposing desktop (set one to enable /vnc/)" >&2
     elif command -v x11vnc >/dev/null 2>&1; then
         start x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -quiet \
-            -passwd "$VNC_PASSWORD"
+            -passwd "$VNC_PW"
 
         # websockify serves the noVNC web client and bridges browser websockets
         # to the raw VNC port. This is what the Go proxy forwards /vnc/ to.
