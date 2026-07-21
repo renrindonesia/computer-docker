@@ -49,6 +49,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         fluxbox \
         novnc \
         websockify \
+        x11-xserver-utils \
+        xterm \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s "$(command -v fdfind)" /usr/local/bin/fd \
     && ln -s "$(command -v batcat)" /usr/local/bin/bat

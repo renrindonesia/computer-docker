@@ -31,7 +31,21 @@ if command -v Xvfb >/dev/null 2>&1; then
 
     start Xvfb "$DISPLAY" -screen 0 "$SCREEN_GEOMETRY" -nolisten tcp
 
-    command -v fluxbox >/dev/null 2>&1 && start fluxbox
+    # Window manager. Like x11vnc, fluxbox dies instantly if it opens the display
+    # before Xvfb is ready — that race left the screen a bare (black) root with no
+    # WM, toolbar or menu. Retry until X is up. Also paint a visible root colour
+    # first (if xsetroot exists) so a connected-but-empty desktop reads as alive.
+    if command -v fluxbox >/dev/null 2>&1; then
+        start sh -c '
+            until command -v xsetroot >/dev/null 2>&1 && xsetroot -solid "#2e3440" 2>/dev/null; do
+                sleep 1; n=$((${n:-0}+1)); [ "${n:-0}" -ge 30 ] && break
+            done
+            n=0
+            until fluxbox; do
+                n=$((n + 1)); [ "$n" -ge 30 ] && { echo "entrypoint: fluxbox gave up waiting for X" >&2; break; }
+                echo "entrypoint: fluxbox waiting for X on $DISPLAY ($n)"; sleep 1
+            done'
+    fi
 
     # x11vnc + websockify expose the desktop under /vnc/, which sits OUTSIDE the
     # API key (noVNC's relative asset/websocket URLs can't carry ?key=). The VNC
