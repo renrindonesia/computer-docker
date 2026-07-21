@@ -23,6 +23,12 @@ if command -v Xvfb >/dev/null 2>&1; then
     # fresh/volume-mounted /tmp. Without it Xvfb fails and x11vnc can't connect.
     mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
+    # Railway keeps /tmp across restarts, so a previous instance's lock and
+    # socket for our display survive and make Xvfb bail with "server already
+    # active for display". Clear them for our display number before starting.
+    DNUM="${DISPLAY#:}"
+    rm -f "/tmp/.X${DNUM}-lock" "/tmp/.X11-unix/X${DNUM}" 2>/dev/null || true
+
     start Xvfb "$DISPLAY" -screen 0 "$SCREEN_GEOMETRY" -nolisten tcp
 
     command -v fluxbox >/dev/null 2>&1 && start fluxbox
