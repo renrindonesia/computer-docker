@@ -117,13 +117,16 @@ RUN pip install --no-cache-dir browser-use playwright \
 WORKDIR /app
 COPY --from=build /out/api /usr/local/bin/api
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY samples /opt/samples
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENV ADDR=:8080 \
     FS_ROOT=/opt/data \
     EXEC_TIMEOUT_SEC=30 \
     EXEC_MAX_TIMEOUT_SEC=300 \
-    DISPLAY=:99
+    DISPLAY=:99 \
+    CDP_PORT=9222 \
+    BROWSER_AUTOSTART=1
 
 # Runs as root so bind-mounted volumes at /opt/data are accessible regardless of
 # host ownership (appuser hit permission errors on mounted volumes).

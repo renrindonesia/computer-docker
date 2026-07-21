@@ -270,6 +270,43 @@ Notes:
 
 ---
 
+## 🌐 Always-on browser + CDP
+
+The container runs a **headful Chromium continuously** on the virtual display
+(so it shows in `/vnc/`) with the DevTools Protocol enabled. It auto-restarts if
+it ever exits, and keeps a persistent profile at `/opt/chrome-profile`.
+
+Agents attach over CDP at **`http://127.0.0.1:9222`** — the endpoint is bound to
+loopback on purpose (CDP grants full browser + local-file control, so it is
+never exposed publicly). Drive it from anything running inside the container
+(the `exec`/`procs` APIs, browser-use, Playwright, Puppeteer):
+
+```python
+# browser-use
+from browser_use import Browser
+browser = Browser(cdp_url="http://127.0.0.1:9222")
+```
+
+Ready-to-run stealth samples are baked in at `/opt/samples` (both attach to the
+running browser, so the automation is visible live in `/vnc/`):
+
+```bash
+# Playwright (Python — works out of the box)
+python3 /opt/samples/cdp_stealth.py https://bot.sannysoft.com
+
+# Puppeteer (Node — one-time install)
+cd /opt/samples && npm i puppeteer-core
+node /opt/samples/cdp_stealth.js https://bot.sannysoft.com
+```
+
+| Var | Default | Meaning |
+|---|---|---|
+| `BROWSER_AUTOSTART` | `1` | set `0` to not launch the always-on browser |
+| `CDP_PORT` | `9222` | DevTools Protocol port (loopback only) |
+| `CHROME_PROFILE` | `/opt/chrome-profile` | persistent user-data dir |
+
+---
+
 ## 🛠️ Development
 
 ```bash

@@ -94,6 +94,45 @@ if command -v Xvfb >/dev/null 2>&1; then
             start websockify --web "$WEB" "$NOVNC_PORT" "localhost:${VNC_PORT}"
         fi
     fi
+
+    # Continuously-running headful Chromium with CDP enabled, on the virtual
+    # display so it shows in /vnc/. Agents attach over the DevTools Protocol at
+    # http://127.0.0.1:$CDP_PORT (e.g. browser-use cdp_url). CDP binds loopback
+    # only on purpose: it grants full browser + local-file control, so it must
+    # NOT be exposed publicly. Set BROWSER_AUTOSTART=0 to disable.
+    CDP_PORT="${CDP_PORT:-9222}"
+    CHROME_PROFILE="${CHROME_PROFILE:-/opt/chrome-profile}"
+    if [ "${BROWSER_AUTOSTART:-1}" = "1" ]; then
+        CHROME="$(ls /opt/ms-playwright/chromium-*/chrome-linux/chrome 2>/dev/null | head -1)"
+        if [ -z "$CHROME" ]; then CHROME="$(command -v google-chrome chromium chromium-browser 2>/dev/null | head -1)"; fi
+        if [ -z "$CHROME" ]; then
+            echo "entrypoint: chromium not found — browser autostart skipped" >&2
+        else
+            mkdir -p "$CHROME_PROFILE"
+            # Size the window to the virtual screen (1280x800x24 -> "1280,800")
+            # so it fills the display instead of leaving a black margin.
+            CHROME_WIN="$(echo "${SCREEN_GEOMETRY%x*}" | tr 'x' ',')"
+            export CHROME_BIN="$CHROME" CHROME_PROFILE CDP_PORT DNUM CHROME_WIN
+            echo "entrypoint: chromium=$CHROME cdp=127.0.0.1:$CDP_PORT profile=$CHROME_PROFILE"
+            # Keep-alive loop: wait for X, clear stale singleton lock from a prior
+            # run (persisted profile), then relaunch if the browser ever exits.
+            start sh -c '
+                while [ ! -e "/tmp/.X11-unix/X${DNUM}" ]; do sleep 1; done
+                while true; do
+                    rm -f "$CHROME_PROFILE"/Singleton* 2>/dev/null || true
+                    "$CHROME_BIN" \
+                        --no-sandbox --disable-gpu --disable-dev-shm-usage \
+                        --no-first-run --no-default-browser-check \
+                        --remote-debugging-address=127.0.0.1 \
+                        --remote-debugging-port="$CDP_PORT" \
+                        --user-data-dir="$CHROME_PROFILE" \
+                        --window-position=0,0 --window-size="$CHROME_WIN" \
+                        about:blank
+                    echo "entrypoint: chromium exited ($?), restarting in 2s" >&2
+                    sleep 2
+                done'
+        fi
+    fi
 else
     echo "entrypoint: Xvfb not installed — skipping display stack" >&2
 fi
