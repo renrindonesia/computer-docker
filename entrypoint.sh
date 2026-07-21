@@ -14,17 +14,16 @@ SCREEN_GEOMETRY="${SCREEN_GEOMETRY:-1280x800x24}"
 VNC_PORT="${VNC_PORT:-5900}"
 NOVNC_PORT="${NOVNC_PORT:-6080}"
 NOVNC_WEB="${NOVNC_WEB:-/usr/share/novnc}"
+export VNC_PORT
 
 start() { echo "entrypoint: starting $*"; "$@" & }
 
 if command -v Xvfb >/dev/null 2>&1; then
-    start Xvfb "$DISPLAY" -screen 0 "$SCREEN_GEOMETRY" -nolisten tcp
+    # Xvfb needs this dir to create its display socket; it may not exist on a
+    # fresh/volume-mounted /tmp. Without it Xvfb fails and x11vnc can't connect.
+    mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
-    # Give Xvfb a moment to create the display socket before clients connect.
-    i=0
-    while [ ! -e "/tmp/.X11-unix/X${DISPLAY#:}" ] && [ "$i" -lt 50 ]; do
-        i=$((i + 1)); sleep 0.1
-    done
+    start Xvfb "$DISPLAY" -screen 0 "$SCREEN_GEOMETRY" -nolisten tcp
 
     command -v fluxbox >/dev/null 2>&1 && start fluxbox
 
@@ -46,8 +45,20 @@ if command -v Xvfb >/dev/null 2>&1; then
     elif ! command -v websockify >/dev/null 2>&1; then
         echo "entrypoint: websockify not installed — /vnc/ disabled" >&2
     else
-        start x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" -quiet \
-            -passwd "$VNC_PW"
+        # Race-proof: x11vnc exits immediately if X isn't up yet, so retry until
+        # Xvfb is ready rather than one-shotting it (the cause of the earlier
+        # "Couldn't connect to XServer:99"). Password passed via env to dodge
+        # shell-quoting issues and to keep it out of the process arg list.
+        export X11VNC_PW="$VNC_PW"
+        start sh -c '
+            n=0
+            until x11vnc -display "$DISPLAY" -forever -shared -rfbport "$VNC_PORT" \
+                    -quiet -passwd "$X11VNC_PW"; do
+                n=$((n + 1))
+                [ "$n" -ge 60 ] && { echo "entrypoint: x11vnc gave up waiting for $DISPLAY" >&2; break; }
+                echo "entrypoint: x11vnc waiting for X on $DISPLAY ($n)"
+                sleep 1
+            done'
 
         # Locate the noVNC web assets — the Debian package path varies by
         # release. websockify --web serves them; the Go proxy forwards /vnc/ here.
