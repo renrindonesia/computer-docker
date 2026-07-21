@@ -103,7 +103,9 @@ if command -v Xvfb >/dev/null 2>&1; then
     CDP_PORT="${CDP_PORT:-9222}"
     CHROME_PROFILE="${CHROME_PROFILE:-/opt/chrome-profile}"
     if [ "${BROWSER_AUTOSTART:-1}" = "1" ]; then
-        CHROME="$(ls /opt/ms-playwright/chromium-*/chrome-linux/chrome 2>/dev/null | head -1)"
+        # Playwright names the dir per-arch: chrome-linux (arm64) or
+        # chrome-linux64 (amd64) — glob matches both.
+        CHROME="$(ls /opt/ms-playwright/chromium-*/chrome-linux*/chrome 2>/dev/null | head -1)"
         if [ -z "$CHROME" ]; then CHROME="$(command -v google-chrome chromium chromium-browser 2>/dev/null | head -1)"; fi
         if [ -z "$CHROME" ]; then
             echo "entrypoint: chromium not found — browser autostart skipped" >&2
